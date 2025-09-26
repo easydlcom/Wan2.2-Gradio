@@ -312,6 +312,140 @@ def _init_logging(rank):
         logging.basicConfig(level=logging.ERROR)
 
 
+def generate_with_params(
+    # 基本参数
+    task="t2v-A14B",
+    size="1280*720",
+    frame_num=None,
+    ckpt_dir=None,
+    offload_model=None,
+    ulysses_size=1,
+    t5_fsdp=False,
+    t5_cpu=False,
+    dit_fsdp=False,
+    save_file=None,
+    prompt=None,
+    use_prompt_extend=False,
+    prompt_extend_method="local_qwen",
+    prompt_extend_model=None,
+    prompt_extend_target_lang="zh",
+    base_seed=-1,
+    image=None,
+    sample_solver='unipc',
+    sample_steps=None,
+    sample_shift=None,
+    sample_guide_scale=None,
+    convert_model_dtype=False,
+    
+    # animate 参数
+    src_root_path=None,
+    refert_num=77,
+    replace_flag=False,
+    use_relighting_lora=False,
+    
+    # s2v 参数
+    num_clip=None,
+    audio=None,
+    enable_tts=False,
+    tts_prompt_audio=None,
+    tts_prompt_text=None,
+    tts_text=None,
+    pose_video=None,
+    start_from_ref=False,
+    infer_frames=80,
+):
+    """
+    使用具体参数而不是args对象来生成视频的函数
+    
+    Args:
+        task (str): 要运行的任务
+        size (str): 生成视频的区域(宽度*高度)
+        frame_num (int): 生成的视频帧数
+        ckpt_dir (str): 检查点目录的路径
+        offload_model (bool): 是否在每次模型前向传播后将模型卸载到CPU
+        ulysses_size (int): DiT中使用的ulysses并行大小
+        t5_fsdp (bool): 是否对T5使用FSDP
+        t5_cpu (bool): 是否将T5模型放在CPU上
+        dit_fsdp (bool): 是否对DiT使用FSDP
+        save_file (str): 保存生成视频的文件
+        prompt (str): 生成视频的提示
+        use_prompt_extend (bool): 是否使用提示扩展
+        prompt_extend_method (str): 使用的提示扩展方法
+        prompt_extend_model (str): 使用的提示扩展模型
+        prompt_extend_target_lang (str): 提示扩展的目标语言
+        base_seed (int): 生成视频的种子
+        image (str): 生成视频的图像路径
+        sample_solver (str): 用于采样的求解器
+        sample_steps (int): 采样步骤
+        sample_shift (float): 流匹配调度器的采样移位因子
+        sample_guide_scale (float): 无分类器指导比例
+        convert_model_dtype (bool): 是否转换模型参数数据类型
+        
+        # animate 参数
+        src_root_path (str): 处理输出路径的文件
+        refert_num (int): 用于时间指导的帧数
+        replace_flag (bool): 是否使用替换
+        use_relighting_lora (bool): 是否使用补光lora
+        
+        # s2v 参数
+        num_clip (int): 要生成的视频片段数
+        audio (str): 音频文件路径
+        enable_tts (bool): 使用CosyVoice合成音频
+        tts_prompt_audio (str): tts提示音频文件路径
+        tts_prompt_text (str): tts提示音频的内容
+        tts_text (str): 希望合成的文本
+        pose_video (str): 提供Dw-pose序列以进行姿态驱动
+        start_from_ref (bool): 是否将参考图像设置为生成的起点
+        infer_frames (int): 每个片段的帧数
+    """
+    # 创建一个类似args的对象来兼容现有代码
+    class Args:
+        pass
+    
+    args = Args()
+    args.task = task
+    args.size = size
+    args.frame_num = frame_num
+    args.ckpt_dir = ckpt_dir
+    args.offload_model = offload_model
+    args.ulysses_size = ulysses_size
+    args.t5_fsdp = t5_fsdp
+    args.t5_cpu = t5_cpu
+    args.dit_fsdp = dit_fsdp
+    args.save_file = save_file
+    args.prompt = prompt
+    args.use_prompt_extend = use_prompt_extend
+    args.prompt_extend_method = prompt_extend_method
+    args.prompt_extend_model = prompt_extend_model
+    args.prompt_extend_target_lang = prompt_extend_target_lang
+    args.base_seed = base_seed
+    args.image = image
+    args.sample_solver = sample_solver
+    args.sample_steps = sample_steps
+    args.sample_shift = sample_shift
+    args.sample_guide_scale = sample_guide_scale
+    args.convert_model_dtype = convert_model_dtype
+    args.src_root_path = src_root_path
+    args.refert_num = refert_num
+    args.replace_flag = replace_flag
+    args.use_relighting_lora = use_relighting_lora
+    args.num_clip = num_clip
+    args.audio = audio
+    args.enable_tts = enable_tts
+    args.tts_prompt_audio = tts_prompt_audio
+    args.tts_prompt_text = tts_prompt_text
+    args.tts_text = tts_text
+    args.pose_video = pose_video
+    args.start_from_ref = start_from_ref
+    args.infer_frames = infer_frames
+    
+    # 验证参数
+    _validate_args(args)
+    
+    # 调用原来的generate函数
+    return generate(args)
+
+
 def generate(args):
     rank = int(os.getenv("RANK", 0))
     world_size = int(os.getenv("WORLD_SIZE", 1))
