@@ -90,32 +90,79 @@ def _parse_args():
 
     return args
 
+def run_preprocessing_pipeline(ckpt_path: str, video_path: str, refer_path: str, save_path: str, 
+                              resolution_area: list = [1280, 720], fps: int = 30,
+                              replace_flag: bool = False, retarget_flag: bool = False, use_flux: bool = False,
+                              iterations: int = 3, k: int = 7, w_len: int = 1, h_len: int = 1):
+    """
+    运行动画预处理管道的函数封装，可供其他代码调用
+    
+    Args:
+        ckpt_path (str): 预处理模型检查点目录的路径
+        video_path (str): 驱动视频路径
+        refer_path (str): 参考图像路径
+        save_path (str): 处理结果保存路径
+        resolution_area (list): 处理的目标分辨率，格式为 [宽度, 高度]
+        fps (int): 处理驱动视频的目标帧率，设置为-1使用视频原始帧率
+        replace_flag (bool): 是否使用替换模式
+        retarget_flag (bool): 是否使用姿态重定向
+        use_flux (bool): 是否在姿态重定向中使用图像编辑
+        iterations (int): 掩码膨胀的迭代次数
+        k (int): 掩码膨胀的内核大小
+        w_len (int): 沿"w"维度的网格细分数
+        h_len (int): 沿"h"维度的网格细分数
+    """
+    assert len(resolution_area) == 2, "resolution_area should be a list of two integers [width, height]"
+    assert not use_flux or retarget_flag, "Image editing with FLUX can only be used when pose retargeting is enabled."
+
+    pose2d_checkpoint_path = os.path.join(ckpt_path, 'pose2d/vitpose_h_wholebody.onnx')
+    det_checkpoint_path = os.path.join(ckpt_path, 'det/yolov10m.onnx')
+
+    sam2_checkpoint_path = os.path.join(ckpt_path, 'sam2/sam2_hiera_large.pt') if replace_flag else None
+    flux_kontext_path = os.path.join(ckpt_path, 'FLUX.1-Kontext-dev') if use_flux else None
+    
+    process_pipeline = ProcessPipeline(
+        det_checkpoint_path=det_checkpoint_path, 
+        pose2d_checkpoint_path=pose2d_checkpoint_path, 
+        sam_checkpoint_path=sam2_checkpoint_path, 
+        flux_kontext_path=flux_kontext_path
+    )
+    
+    os.makedirs(save_path, exist_ok=True)
+    
+    process_pipeline(
+        video_path=video_path, 
+        refer_image_path=refer_path, 
+        output_path=save_path,
+        resolution_area=resolution_area,
+        fps=fps,
+        iterations=iterations,
+        k=k,
+        w_len=w_len,
+        h_len=h_len,
+        retarget_flag=retarget_flag,
+        use_flux=use_flux,
+        replace_flag=replace_flag
+    )
+
 
 if __name__ == '__main__':
     args = _parse_args()
     args_dict = vars(args)
     print(args_dict)
 
-    assert len(args.resolution_area) == 2, "resolution_area should be a list of two integers [width, height]"
-    assert not args.use_flux or args.retarget_flag, "Image editing with FLUX can only be used when pose retargeting is enabled."
-
-    pose2d_checkpoint_path = os.path.join(args.ckpt_path, 'pose2d/vitpose_h_wholebody.onnx')
-    det_checkpoint_path = os.path.join(args.ckpt_path, 'det/yolov10m.onnx')
-
-    sam2_checkpoint_path = os.path.join(args.ckpt_path, 'sam2/sam2_hiera_large.pt') if args.replace_flag else None
-    flux_kontext_path = os.path.join(args.ckpt_path, 'FLUX.1-Kontext-dev') if args.use_flux else None
-    process_pipeline = ProcessPipeline(det_checkpoint_path=det_checkpoint_path, pose2d_checkpoint_path=pose2d_checkpoint_path, sam_checkpoint_path=sam2_checkpoint_path, flux_kontext_path=flux_kontext_path)
-    os.makedirs(args.save_path, exist_ok=True)
-    process_pipeline(video_path=args.video_path, 
-                     refer_image_path=args.refer_path, 
-                     output_path=args.save_path,
-                     resolution_area=args.resolution_area,
-                     fps=args.fps,
-                     iterations=args.iterations,
-                     k=args.k,
-                     w_len=args.w_len,
-                     h_len=args.h_len,
-                     retarget_flag=args.retarget_flag,
-                     use_flux=args.use_flux,
-                     replace_flag=args.replace_flag)
-
+    run_preprocessing_pipeline(
+        ckpt_path=args.ckpt_path,
+        video_path=args.video_path,
+        refer_path=args.refer_path,
+        save_path=args.save_path,
+        resolution_area=args.resolution_area,
+        fps=args.fps,
+        replace_flag=args.replace_flag,
+        retarget_flag=args.retarget_flag,
+        use_flux=args.use_flux,
+        iterations=args.iterations,
+        k=args.k,
+        w_len=args.w_len,
+        h_len=args.h_len
+    )
